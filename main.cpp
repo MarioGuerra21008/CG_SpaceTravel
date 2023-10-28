@@ -5,6 +5,7 @@
 #include <array>
 #include <cmath>
 #include <random>
+#include <mutex>
 #include <SDL.h>
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
@@ -23,6 +24,13 @@
 const int WINDOW_WIDTH = 1080;
 const int WINDOW_HEIGHT = 720;
 float pi = 3.14f / 3.0f;
+std::mutex mutex;
+
+//FrameRate
+Uint32 startingFrame; // Tiempo de inicio del cuadro actual
+Uint32 frameTime; // Tiempo transcurrido en el cuadro actual
+int frameCounter = 0;  // Contador
+int fps = 0; // FPS
 
 Color colorClear = {0, 0, 0, 255};
 Color current = {255, 255, 255, 255};
@@ -36,6 +44,24 @@ SDL_Window* window;
 Uniform uniform;
 
 std::array<double, SCREEN_WIDTH * SCREEN_HEIGHT> zBuffer;
+
+enum Planets {
+    SPACE,
+    SUN,
+    EARTH,
+    MARS,
+    JUPITER,
+    SATURN,
+    URANUS,
+    NEPTUNE,
+    SHIP
+};
+
+struct BuildingModel {
+    Uniform uniform;
+    std::vector<Vertex>* v;
+    Planets i;
+};
 
 struct Camera {
     glm::vec3 cameraPosition;
@@ -165,7 +191,33 @@ glm::mat4 createViewportMatrix() {
     return viewport;
 }
 
-void render(const std::vector<Vertex>& vertexArray,  const Uniform& uniform) {
+
+
+// Declaración de variables para los shaders del sistema solar y la nave.
+
+Uniform uniform1;
+Uniform uniform2;
+Uniform uniform3;
+Uniform uniform4;
+Uniform uniform5;
+Uniform uniform6;
+Uniform uniform7;
+Uniform uniform8;
+Uniform uniform9;
+Uniform uniform10;
+
+BuildingModel model1;
+BuildingModel model2;
+BuildingModel model3;
+BuildingModel model4;
+BuildingModel model5;
+BuildingModel model6;
+BuildingModel model7;
+BuildingModel model8;
+BuildingModel model9;
+BuildingModel model10;
+
+void render(const std::vector<Vertex>& vertexArray,  const Uniform& uniform, int planetIdentifier) {
     std::vector<Vertex> transformedVertexArray;
     for (const auto& vertex : vertexArray) {
         auto transformedVertex = vertexShader(vertex, uniform);
@@ -191,10 +243,12 @@ void render(const std::vector<Vertex>& vertexArray,  const Uniform& uniform) {
         for (int y = minY; y <= maxY; ++y) {
             for (int x = minX; x <= maxX; ++x) {
                 if (y>0 && y<SCREEN_HEIGHT && x>0 && x<SCREEN_WIDTH) {
-                    glm::vec2 pixelPosition(static_cast<float>(x) + 0.5f, static_cast<float>(y) + 0.5f); // Central point of the pixel
+                    glm::vec2 pixelPosition(static_cast<float>(x) + 0.5f, static_cast<float>(y) + 0.5f);
                     glm::vec3 barycentricCoord = calculateBarycentricCoord(A, B, C, pixelPosition);
 
-                    if (isBarycentricCoord(barycentricCoord)) {
+                    double cam = barycentricCoord.x * a.z + barycentricCoord.y * b.z + barycentricCoord.z * c.z;
+
+                    if (isBarycentricCoord(barycentricCoord) && cam > 0) {
                         Color modelColor {0, 0, 0};
                         Color interpolatedColor = interpolateColor(barycentricCoord, modelColor, modelColor, modelColor);
 
@@ -202,15 +256,18 @@ void render(const std::vector<Vertex>& vertexArray,  const Uniform& uniform) {
 
                         glm::vec3 normal = a.normal * barycentricCoord.x + b.normal * barycentricCoord.y+ c.normal * barycentricCoord.z;
 
-                        float fragmentIntensity = glm::dot(normal, glm::vec3 (0.0f,0.0f,1.0f));
+                        float fragmentIntensity;
+
+                        if (planetIdentifier == SPACE) {
+                            fragmentIntensity = glm::dot(normal, glm::vec3 (0.0f,0.0f,1.0f));
+                        }
                         if (fragmentIntensity <= 0){
                             continue;
                         }
 
-                        // Apply fragment shader to calculate final color with shading
                         Color finalColor = interpolatedColor * fragmentIntensity;
                         glm::vec3 original = a.original * barycentricCoord.x + b.original * barycentricCoord.y + c.original * barycentricCoord.z;
-                        // Create a fragment with the position, interpolated attributes, and depth
+
                         Fragment fragment;
                         fragment.position = glm::ivec2(x, y);
                         fragment.color = finalColor;
@@ -219,13 +276,51 @@ void render(const std::vector<Vertex>& vertexArray,  const Uniform& uniform) {
 
                         int index = y * WINDOW_WIDTH + x;
                         if (depth < zBuffer[index]) {
-                            // Apply fragment shader to calculate final color
-                            Color fragmentShaderf = fragmentShader(fragment); //Cambiar nombre del método para ver los shaders
-                            // Draw the fragment using SDL_SetRenderDrawColor and SDL_RenderDrawPoint
-                            SDL_SetRenderDrawColor(renderer, fragmentShaderf.r, fragmentShaderf.g, fragmentShaderf.b, fragmentShaderf.a);
+                            mutex.lock();
+                            Color fragmentShaderf;
+                            switch(planetIdentifier) {
+                                case SPACE:
+                                    fragmentShaderf = fragmentShader(fragment);
+                                    SDL_SetRenderDrawColor(renderer, fragmentShaderf.r, fragmentShaderf.g, fragmentShaderf.b, fragmentShaderf.a);
+                                    break;
+                                case SHIP:
+                                    fragmentShaderf = fragmentShaderSpaceship(fragment);
+                                    SDL_SetRenderDrawColor(renderer, fragmentShaderf.r, fragmentShaderf.g, fragmentShaderf.b, fragmentShaderf.a);
+                                    break;
+                                case SUN:
+                                    fragmentShaderf = fragmentShaderSun(fragment);
+                                    SDL_SetRenderDrawColor(renderer, fragmentShaderf.r, fragmentShaderf.g, fragmentShaderf.b, fragmentShaderf.a);
+                                    break;
+                                case EARTH:
+                                    fragmentShaderf = fragmentShaderEarth(fragment);
+                                    SDL_SetRenderDrawColor(renderer, fragmentShaderf.r, fragmentShaderf.g, fragmentShaderf.b, fragmentShaderf.a);
+                                    break;
+                                case MARS:
+                                    fragmentShaderf = fragmentShaderMars(fragment);
+                                    SDL_SetRenderDrawColor(renderer, fragmentShaderf.r, fragmentShaderf.g, fragmentShaderf.b, fragmentShaderf.a);
+                                    break;
+                                case JUPITER:
+                                    fragmentShaderf = fragmentShaderJupiter(fragment);
+                                    SDL_SetRenderDrawColor(renderer, fragmentShaderf.r, fragmentShaderf.g, fragmentShaderf.b, fragmentShaderf.a);
+                                    break;
+                                case SATURN:
+                                    fragmentShaderf = fragmentShaderSaturn(fragment);
+                                    SDL_SetRenderDrawColor(renderer, fragmentShaderf.r, fragmentShaderf.g, fragmentShaderf.b, fragmentShaderf.a);
+                                    break;
+                                case URANUS:
+                                    fragmentShaderf = fragmentShaderUranus(fragment);
+                                    SDL_SetRenderDrawColor(renderer, fragmentShaderf.r, fragmentShaderf.g, fragmentShaderf.b, fragmentShaderf.a);
+                                    break;
+                                case NEPTUNE:
+                                    fragmentShaderf = fragmentShaderNeptune(fragment);
+                                    SDL_SetRenderDrawColor(renderer, fragmentShaderf.r, fragmentShaderf.g, fragmentShaderf.b, fragmentShaderf.a);
+                                    break;
+                            }
+
                             SDL_RenderDrawPoint(renderer, x, WINDOW_HEIGHT-y);
                             nextTime = 0.5f + 1.0f;
                             zBuffer[index] = depth;
+                            mutex.unlock();
                         }
                     }
                 }

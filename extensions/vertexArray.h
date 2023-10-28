@@ -11,6 +11,7 @@ struct Vertex {
     glm::vec3 normal;
     glm::vec3 tex;
     glm::vec3 original;
+    double z;
 };
 
 std::vector<Vertex> setupVertexArray(const std::vector<glm::vec3>& vertices, const std::vector<glm::vec3>& normals, const std::vector<Face>& faces)

@@ -492,6 +492,9 @@ Color fragmentShaderNeptune(Fragment& fragment) {
     return fragment.color;
 }
 
-Color fragmentShaderMoon(Fragment& fragment) {
+Color fragmentShaderSpaceship(Fragment& fragment) {
+    Color ship(144,8,155);
+    fragment.color = ship;
+
     return fragment.color;
 }
