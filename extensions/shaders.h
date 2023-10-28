@@ -40,8 +40,53 @@ Vertex vertexShader(const Vertex& vertex, const Uniform& uniform) {
 float nextTime = 0.5f;
 
 Color fragmentShader(Fragment& fragment) {
-    return fragment.color;
+    // Obtiene las coordenadas del fragmento en el espacio 2D
+    glm::vec2 fragmentCoords(fragment.original.x, fragment.original.y);
+
+    // Crear un objeto FastNoiseLite para generar ruido
+    FastNoiseLite noise;
+
+    // Configuración del ruido
+    noise.SetNoiseType(FastNoiseLite::NoiseType_Perlin);
+    noise.SetSeed(1500); // Semilla para la generación de ruido (puedes cambiarla)
+    noise.SetFrequency(0.005f); // Frecuencia del ruido (ajusta según tus preferencias)
+
+    // Configuración de ruido fractal para variaciones
+    noise.SetFractalType(FastNoiseLite::FractalType_PingPong); // Tipo de ruido fractal
+    noise.SetFractalOctaves(2); // Número de octavas
+    noise.SetFractalLacunarity(10 + nextTime); // Lacunarity (variación en la frecuencia)
+    noise.SetFractalGain(1.0f); // Ganancia
+    noise.SetFractalWeightedStrength(0.80f); // Fuerza ponderada
+    noise.SetFractalPingPongStrength(10); // Fuerza de ping pong
+
+    // Configuración de ruido celular
+    noise.SetCellularDistanceFunction(FastNoiseLite::CellularDistanceFunction_Euclidean); // Función de distancia celular
+    noise.SetCellularReturnType(FastNoiseLite::CellularReturnType_Distance2Add); // Tipo de retorno celular
+    noise.SetCellularJitter(20); // Jitter (variación en las celdas)
+
+    // Parámetros para la rotación de las estrellas
+    float ox = 15000.0f; // Desplazamiento en X
+    float oy = 15000.0f; // Desplazamiento en Y
+    float zoom = 100000.0f; // Factor de zoom (ajusta según tus preferencias)
+
+    // Obtener el valor de ruido en función de la posición y el zoom
+    float noiseValue = abs(noise.GetNoise((fragment.original.x + ox) * zoom, (fragment.original.y + oy) * zoom, fragment.original.z * zoom));
+
+    // Configurar el color de las estrellas (blanco)
+    Color starColor(255, 255, 255, 255);
+
+    // Si el valor de ruido es mayor que cierto umbral, muestra una estrella
+    if (noiseValue > 0.80f) {
+        return starColor; // Color blanco para las estrellas
+    }
+
+    // Si no es una estrella, devuelve un color negro para el espacio vacío
+    return Color(0, 0, 0, 255); // Color negro para el espacio
+
+    // Incrementar la variable "nextTime" para animar el ruido (rotación)
+    nextTime += 0.5f; // Puedes ajustar la velocidad de rotación
 }
+
 
 Color fragmentShaderSun(Fragment& fragment) {
     // Obtiene las coordenadas del fragmento en el espacio 2D

@@ -220,7 +220,7 @@ void render(const std::vector<Vertex>& vertexArray,  const Uniform& uniform) {
                         int index = y * WINDOW_WIDTH + x;
                         if (depth < zBuffer[index]) {
                             // Apply fragment shader to calculate final color
-                            Color fragmentShaderf = fragmentShaderEarth(fragment); //Cambiar nombre del método para ver los shaders
+                            Color fragmentShaderf = fragmentShader(fragment); //Cambiar nombre del método para ver los shaders
                             // Draw the fragment using SDL_SetRenderDrawColor and SDL_RenderDrawPoint
                             SDL_SetRenderDrawColor(renderer, fragmentShaderf.r, fragmentShaderf.g, fragmentShaderf.b, fragmentShaderf.a);
                             SDL_RenderDrawPoint(renderer, x, WINDOW_HEIGHT-y);
