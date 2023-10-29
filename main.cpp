@@ -6,6 +6,7 @@
 #include <cmath>
 #include <random>
 #include <mutex>
+#include <thread>
 #include <SDL.h>
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
@@ -38,7 +39,7 @@ Color color1 = {255, 0, 0, 255};
 Color color2 = {0, 255, 0, 255};
 Color color3 = {0, 0, 255, 255};
 
-glm::vec3 light = glm::vec3(0.0f, 0.0f, 0.0f);
+glm::vec3 light = glm::vec3(0.0f, 0.0f, 200.0f);
 
 SDL_Window* window;
 Uniform uniform;
@@ -174,7 +175,7 @@ glm::mat4 createViewMatrix() {
 
 glm::mat4 createProjectionMatrix() {
     float fovInDegrees = 45.0f;
-    float aspectRatio = SCREEN_WIDTH / SCREEN_HEIGHT;
+    float aspectRatio = WINDOW_WIDTH / SCREEN_HEIGHT;
     float nearClip = 0.1f;
     float farClip = 100.0f;
 
@@ -186,12 +187,38 @@ glm::mat4 createViewportMatrix() {
     // Scale
     viewport = glm::scale(viewport, glm::vec3(WINDOW_WIDTH / 2.0f, WINDOW_HEIGHT / 1.5f, 0.5f));
     // Translate
-    viewport = glm::translate(viewport, glm::vec3(1.0f, 0.75f, 1.0f));
+    viewport = glm::translate(viewport, glm::vec3(1.0f, 1.0f, 1.5f));
 
     return viewport;
 }
 
+glm::mat4 createModelSpace() {
+    glm::mat4 translation = glm::translate(glm::mat4(1), glm::vec3(0.0f, 0.0f, -30.0f));
+    glm::mat4 scale = glm::scale(glm::mat4(1), glm::vec3(20.0f, 20.0f, 20.0f));
+    glm::mat4 rotation = glm::mat4(1.0f);
+    return translation * scale * rotation;
+}
 
+glm::mat4 createModelSpaceship(glm::vec3 cameraPosition, glm::vec3 targetPosition,glm::vec3 upVector, float rotX, float rotY) {
+    glm::mat4 translation = glm::translate(glm::mat4(1), (targetPosition - cameraPosition) / 7.0f + cameraPosition - upVector *0.15f);
+    glm::mat4 scale = glm::scale(glm::mat4(1), glm::vec3(0.1f, 0.1f, 0.1f));
+    glm::mat4 rotationX = glm::rotate(glm::mat4(1), glm::radians(-rotX - 90.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+    glm::mat4 rotationY = glm::rotate(glm::mat4(1), glm::radians(-rotY), glm::vec3(0.0f, 0.0f, 1.0f));
+    return translation * scale * rotationX * rotationY;
+}
+
+glm::mat4 createModelPlanet(glm::vec3 translationM, glm::vec3 scaleM, glm::vec3 rotationM, float radianSpeed)  {
+    glm::mat4 translation = glm::translate(glm::mat4(1), glm::vec3(0.0f, 0.0f, 0.0f));
+    glm::mat4 scale = glm::scale(glm::mat4(1), glm::vec3(1.0f, 1.0f, 1.0f));
+    glm::mat4 rotation = glm::rotate(glm::mat4(1), glm::radians((pi++)), glm::vec3(0.0f, 1.0f, 0.0f));
+    return translation * scale * rotation;
+}
+
+glm::vec3 calculatePositionInCircle(float angleR, float radius){
+    float xPosition = glm::cos(angleR) * radius;
+    float zPosition = glm::sin(angleR) * radius;
+    return glm::vec3(xPosition, 0.0f, zPosition);
+}
 
 // Declaración de variables para los shaders del sistema solar y la nave.
 
@@ -204,7 +231,6 @@ Uniform uniform6;
 Uniform uniform7;
 Uniform uniform8;
 Uniform uniform9;
-Uniform uniform10;
 
 BuildingModel model1;
 BuildingModel model2;
@@ -215,7 +241,6 @@ BuildingModel model6;
 BuildingModel model7;
 BuildingModel model8;
 BuildingModel model9;
-BuildingModel model10;
 
 void render(const std::vector<Vertex>& vertexArray,  const Uniform& uniform, int planetIdentifier) {
     std::vector<Vertex> transformedVertexArray;
@@ -256,10 +281,10 @@ void render(const std::vector<Vertex>& vertexArray,  const Uniform& uniform, int
 
                         glm::vec3 normal = a.normal * barycentricCoord.x + b.normal * barycentricCoord.y+ c.normal * barycentricCoord.z;
 
-                        float fragmentIntensity;
+                        float fragmentIntensity = (abs(glm::dot(normal, light)) > 1 ) ? 1: abs(glm::dot(normal, light));
 
                         if (planetIdentifier == SPACE) {
-                            fragmentIntensity = glm::dot(normal, glm::vec3 (0.0f,0.0f,1.0f));
+                            fragmentIntensity = glm::dot(normal, glm::vec3(0.0f,0.0f,1.0f));
                         }
                         if (fragmentIntensity <= 0){
                             continue;
@@ -331,21 +356,12 @@ void render(const std::vector<Vertex>& vertexArray,  const Uniform& uniform, int
 
 int main(int argc, char* args[]) {
     SDL_Init(SDL_INIT_EVERYTHING);
-    glm::vec3 translation(0.0f, 0.0f, 0.0f); // Definir la posición del objeto en el mundo
-    glm::vec3 rotationAngles(0.0f, 0.0f, 0.0f); // Ángulos de rotación en los ejes X, Y y Z (en grados)
-    glm::vec3 scale(1.0f, 1.0f, 1.0f);
 
-    glm::vec3 cameraPosition(0.0f, 0.0f, 0.0f); // Mueve la cámara hacia atrás
-    glm::vec3 targetPosition(0.0f, 0.0f, 0.0f);   // Coloca el centro de la escena en el origen
-    glm::vec3 upVector(0.0f, 1.0f, 0.0f);
-
-    uniform.view = createViewMatrix();
-
-    srand(time(nullptr));
-
-    window = SDL_CreateWindow("SR", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, WINDOW_WIDTH, WINDOW_HEIGHT, SDL_WINDOW_SHOWN);
+    startingFrame = SDL_GetTicks();
+    window = SDL_CreateWindow("Space Travel", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, WINDOW_WIDTH, WINDOW_HEIGHT, SDL_WINDOW_SHOWN);
     renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);
 
+    std::vector<BuildingModel> models;
     int renderWidth, renderHeight;
     SDL_GetRendererOutputSize(renderer, &renderWidth, &renderHeight);
 
@@ -358,35 +374,287 @@ int main(int argc, char* args[]) {
         return 1;
     }
 
-    std::vector<Vertex> vertexArray = setupVertexArray(vertices, normal, faces);
+    std::vector<glm::vec3> spaceshipVertices;
+    std::vector<glm::vec3> spaceshipNormal;
+    std::vector<Face> spaceshipFaces;
+
+    std::vector<Vertex> vertexArrayPlanet = setupVertexArray(vertices, normal, faces);
+
+    bool success2 = loadOBJ("../models/cube.obj", spaceshipVertices, spaceshipNormal, spaceshipFaces);
+    if (!success2) {
+        return 1;
+    }
+
+    std::vector<Vertex> vertexArrayShip = setupVertexArray(spaceshipVertices, spaceshipNormal, spaceshipFaces);
+
+    float forwardBackwardMovementSpeed = 0.1f;
+    float leftRightMovementSpeed = 0.1f;
+    float rotationX = 0.0f;
+    float rotationY = 0.0f;
+    float sunRotation = 0.0f;
+    float earthRotation = 0.0f;
+    float marsRotation = 0.0f;
+    float jupiterRotation = 0.0f;
+    float saturnRotation = 0.0f;
+    float uranusRotation = 0.0f;
+    float neptuneRotation = 0.0f;
+    bool cameraToSystem = false;
+    bool cameraToSun = false;
+    bool cameraToEarth = false;
+    bool cameraToMars = false;
+    bool cameraToJupiter = false;
+    bool cameraToSaturn = false;
+    bool cameraToUranus = false;
+    bool cameraToNeptune = false;
+
+    glm::vec3 cameraPosition(0.0f, 0.0f, 5.0f); // Mueve la cámara hacia atrás
+    glm::vec3 targetPosition(0.0f, 0.0f, 0.0f);   // Coloca el centro de la escena en el origen
+    glm::vec3 upVector(0.0f, 1.0f, 0.0f);
+
+    glm::vec3 newCameraPosition;
+    glm::vec3 newSpaceshipCameraPosition;
 
     bool running = true;
     SDL_Event event;
-    glm::mat4 rotationMatrix = glm::mat4(1.0f); // Inicializa la matriz de rotación
-    glm::mat4 traslateMatrix = glm::mat4(1.0f); // Inicializa la matriz de traslación
-    glm::mat4 scaleMatrix = glm::mat4(1.0f); // Inicializa la matriz de escala
+    float speed = 0.01f;
 
     while (running) {
         while (SDL_PollEvent(&event)) {
             if (event.type == SDL_QUIT) {
                 running = false;
             }
+            else if (event.type = SDL_KEYDOWN) {
+                switch (event.key.keysym.sym) {
+                    case SDLK_w:
+                        cameraPosition -= forwardBackwardMovementSpeed * glm::normalize(targetPosition - cameraPosition);
+                        targetPosition -= forwardBackwardMovementSpeed * (targetPosition - cameraPosition);
+                        break;
+                    case SDLK_a:
+                        cameraPosition -= leftRightMovementSpeed * glm::normalize(glm::cross((targetPosition - cameraPosition), upVector))*5.0f;
+                        targetPosition -= leftRightMovementSpeed * glm::normalize(glm::cross((targetPosition - cameraPosition), upVector))*5.0f;
+                        break;
+                    case SDLK_s:
+                        cameraPosition += forwardBackwardMovementSpeed * glm::normalize(targetPosition - cameraPosition);
+                        targetPosition += forwardBackwardMovementSpeed * (targetPosition - cameraPosition);
+                        break;
+                    case SDLK_d:
+                        cameraPosition += leftRightMovementSpeed * glm::normalize(glm::cross((targetPosition - cameraPosition), upVector))*5.0f;
+                        targetPosition += leftRightMovementSpeed * glm::normalize(glm::cross((targetPosition - cameraPosition), upVector))*5.0f;
+                        break;
+                    case SDLK_i:
+                        rotationY -= 1.0f;
+                        break;
+                    case SDLK_j:
+                        rotationX -= 1.0f;
+                        break;
+                    case SDLK_k:
+                        rotationY += 1.0f;
+                        break;
+                    case SDLK_l:
+                        rotationX += 1.0f;
+                        break;
+                    case SDLK_q:
+                        cameraToSystem = !cameraToSystem;
+                        break;
+                    case SDLK_e:
+                        cameraToSun = !cameraToSun;
+                        break;
+                    case SDLK_r:
+                        cameraToEarth = !cameraToEarth;
+                        break;
+                    case SDLK_t:
+                        cameraToMars = !cameraToMars;
+                        break;
+                    case SDLK_y:
+                        cameraToJupiter = !cameraToJupiter;
+                        break;
+                    case SDLK_u:
+                        cameraToSaturn = !cameraToSaturn;
+                        break;
+                    case SDLK_o:
+                        cameraToUranus = !cameraToUranus;
+                        break;
+                    case SDLK_p:
+                        cameraToNeptune = !cameraToNeptune;
+                        break;
+                }
+            }
         }
 
-        uniform.model = createModelMatrix();
-        uniform.projection = createProjectionMatrix();
-        uniform.viewport = createViewportMatrix();
+        models.clear();
+        light = cameraPosition - targetPosition;
+        sunRotation += 0.01f;
+        earthRotation += 0.2f;
+        marsRotation += 0.15f;
+        jupiterRotation += 0.07f;
+        saturnRotation += 0.09f;
+        uranusRotation += 0.1f;
+        neptuneRotation += 0.085f;
+        targetPosition = glm::vec3(10.0f * sin(glm::radians(rotationX)) * cos(glm::radians(rotationY)), 10.0f * sin(glm::radians(rotationY)), -10.0f * cos(glm::radians(rotationX)) * cos(glm::radians(rotationY))) + cameraPosition;
+
+        glm::vec3 translateEarth = calculatePositionInCircle(earthRotation, 2.5f);
+        glm::vec3 translateMars = calculatePositionInCircle(marsRotation, 3.4f);
+        glm::vec3 translateJupiter = calculatePositionInCircle(jupiterRotation, 6.5f);
+        glm::vec3 translateSaturn = calculatePositionInCircle(saturnRotation, 7.5f);
+        glm::vec3 translateUranus = calculatePositionInCircle(uranusRotation, 8.5f);
+        glm::vec3 translateNeptune = calculatePositionInCircle(neptuneRotation, 9.0f);
+
+        uniform1.model = createModelSpace();
+        uniform1.view = glm::lookAt(cameraPosition, targetPosition, upVector);
+        uniform1.projection = createProjectionMatrix();
+        uniform1.viewport = createViewportMatrix();
+
+        model1.uniform = uniform1;
+        model1.v = &vertexArrayPlanet;
+        model1.i = SPACE;
+
+        uniform2.model = createModelPlanet(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(1.0f, 1.0f, 1.0f), glm::vec3(0.0f, 1.0f, 0.0f), 0.1f);
+        uniform2.view =  glm::lookAt(cameraPosition, targetPosition, upVector);
+        uniform2.projection = createProjectionMatrix();
+        uniform2.viewport = createViewportMatrix();
+
+        model2.uniform = uniform2;
+        model2.v = &vertexArrayPlanet;
+        model2.i = SUN;
+
+        uniform3.model = createModelPlanet(translateEarth, glm::vec3(0.5f, 0.5f, 0.5f), glm::vec3(0.0f, 1.0f, 0.0f), 0.4f);
+        uniform3.view = glm::lookAt(cameraPosition, targetPosition, upVector);
+        uniform3.projection = createProjectionMatrix();
+        uniform3.viewport = createViewportMatrix();
+
+        model3.uniform = uniform3;
+        model3.v = &vertexArrayPlanet;
+        model3.i = EARTH;
+
+        uniform4.model = createModelPlanet(translateMars, glm::vec3(0.4f, 0.4f, 0.4f), glm::vec3(0.0f, 1.0f, 0.0f), 0.3f);
+        uniform4.view = glm::lookAt(cameraPosition, targetPosition, upVector);
+        uniform4.projection = createProjectionMatrix();
+        uniform4.viewport = createViewportMatrix();
+
+        model4.uniform = uniform4;
+        model4.v = &vertexArrayPlanet;
+        model4.i = MARS;
+
+        uniform5.model = createModelPlanet(translateJupiter, glm::vec3(0.9f, 0.9f, 0.9f), glm::vec3(0.0f, 1.0f, 0.0f), 0.15f);
+        uniform5.view = glm::lookAt(cameraPosition, targetPosition, upVector);
+        uniform5.projection = createProjectionMatrix();
+        uniform5.viewport = createViewportMatrix();
+
+        model5.uniform = uniform5;
+        model5.v = &vertexArrayPlanet;
+        model5.i = JUPITER;
+
+        uniform6.model = createModelPlanet(translateSaturn, glm::vec3(0.7f, 0.7f, 0.7f), glm::vec3(0.0f, 1.0f, 0.0f), 0.2f);
+        uniform6.view = glm::lookAt(cameraPosition, targetPosition, upVector);
+        uniform6.projection = createProjectionMatrix();
+        uniform6.viewport = createViewportMatrix();
+
+        model6.uniform = uniform6;
+        model6.v = &vertexArrayPlanet;
+        model6.i = SATURN;
+
+        uniform7.model = createModelPlanet(translateUranus, glm::vec3(0.6f, 0.6f, 0.6f), glm::vec3(0.0f, 1.0f, 0.0f), -0.2f);
+        uniform7.view = glm::lookAt(cameraPosition, targetPosition, upVector);
+        uniform7.projection = createProjectionMatrix();
+        uniform7.viewport = createViewportMatrix();
+
+        model7.uniform = uniform7;
+        model7.v = &vertexArrayPlanet;
+        model7.i = URANUS;
+
+        uniform8.model = createModelPlanet(translateNeptune, glm::vec3(0.8f, 0.8f, 0.8f), glm::vec3(0.0f, 1.0f, 0.0f), 0.2f);
+        uniform8.view = glm::lookAt(cameraPosition, targetPosition, upVector);
+        uniform8.projection = createProjectionMatrix();
+        uniform8.viewport = createViewportMatrix();
+
+        model8.uniform = uniform8;
+        model8.v = &vertexArrayPlanet;
+        model8.i = NEPTUNE;
+
+        uniform9.model = createModelSpaceship(cameraPosition, targetPosition, upVector, rotationX, rotationY);
+        uniform9.view = glm::lookAt(cameraPosition, targetPosition, upVector);
+        uniform9.projection = createProjectionMatrix();
+        uniform9.viewport = createViewportMatrix();
+
+        model9.uniform = uniform9;
+        model9.v = &vertexArrayShip;
+        model9.i = SHIP;
+
+        if (cameraToSystem) {
+            upVector = glm::vec3 (1.0f, 0.0f, 0.0f);
+            cameraPosition = glm::vec3 (0,10,0);
+            targetPosition = glm::vec3 (0, 0, 0);
+        }
+
+        if (cameraToEarth) {
+            glm::vec3 orientationCamera = targetPosition - cameraPosition;
+            targetPosition = translateEarth + orientationCamera * 0.75f;
+            cameraPosition = targetPosition - orientationCamera;
+        }
+
+        if (cameraToMars) {
+            glm::vec3 orientationCamera = targetPosition - cameraPosition;
+            targetPosition = translateMars + orientationCamera * 0.75f;
+            cameraPosition = targetPosition - orientationCamera;
+        }
+
+        if (cameraToJupiter) {
+            glm::vec3 orientationCamera = targetPosition - cameraPosition;
+            targetPosition = translateJupiter + orientationCamera * 0.75f;
+            cameraPosition = targetPosition - orientationCamera;
+        }
+
+        if (cameraToSaturn) {
+            glm::vec3 orientationCamera = targetPosition - cameraPosition;
+            targetPosition = translateSaturn + orientationCamera * 0.75f;
+            cameraPosition = targetPosition - orientationCamera;
+        }
+
+        if (cameraToUranus) {
+            glm::vec3 orientationCamera = targetPosition - cameraPosition;
+            targetPosition = translateUranus + orientationCamera * 0.75f;
+            cameraPosition = targetPosition - orientationCamera;
+        }
+
+        if (cameraToNeptune) {
+            glm::vec3 orientationCamera = targetPosition - cameraPosition;
+            targetPosition = translateNeptune + orientationCamera * 0.75f;
+            cameraPosition = targetPosition - orientationCamera;
+        }
+
+        //Pushback a todos los modelos excepto el del espacio.
+        models.push_back(model2);
+        models.push_back(model3);
+        models.push_back(model4);
+        models.push_back(model5);
+        models.push_back(model6);
+        models.push_back(model7);
+        models.push_back(model8);
+        models.push_back(model9);
 
         SDL_SetRenderDrawColor(renderer, colorClear.r, colorClear.g, colorClear.b, colorClear.a);
         SDL_RenderClear(renderer);
-
-        glm::vec4 transformedLight = glm::inverse(createModelMatrix()) * glm::vec4(light, 0.0f);
-        glm::vec3 transformedLightDirection = glm::normalize(glm::vec3(transformedLight));
         std::fill(zBuffer.begin(), zBuffer.end(), std::numeric_limits<double>::max());
-        // Llamada a la función render con la matriz de vértices transformados
-        render(vertexArray, uniform);
+
+        std::vector<std::thread> threadS;
+
+        for (const BuildingModel& model : models) {
+            threadS.emplace_back(render, *model.v, model.uniform, model.i);
+        }
+        for (std::thread& thread : threadS) {
+            thread.join();
+        }
 
         SDL_RenderPresent(renderer);
+        frameTime = SDL_GetTicks() - startingFrame;
+        frameCounter++;
+        if (frameTime >= 1000) {
+            fps = frameCounter;
+            frameCounter = 0;
+            startingFrame = SDL_GetTicks(); // Reinicia el tiempo de inicio para el siguiente segundo
+        }
+        std::string fpsMessage = "Space Travel | FPS: " + std::to_string(fps);
+        SDL_SetWindowTitle(window, fpsMessage.c_str());
     }
 
     SDL_DestroyRenderer(renderer);

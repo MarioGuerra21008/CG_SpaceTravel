@@ -151,14 +151,6 @@ Color fragmentShaderSun(Fragment& fragment) {
     return fragment.color;
 }
 
-Color fragmentShaderMercury(Fragment& fragment) {
-    return fragment.color;
-}
-
-Color fragmentShaderVenus(Fragment& fragment) {
-    return fragment.color;
-}
-
 Color fragmentShaderEarth(Fragment& fragment) {
     // Obtiene las coordenadas del fragmento en el espacio 2D
     glm::vec2 fragmentCoords(fragment.original.x, fragment.original.y);
