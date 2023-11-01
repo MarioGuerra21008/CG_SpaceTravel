@@ -10,8 +10,8 @@
 #include "extensions/uniform.h"
 #include "extensions/vertexArray.h"
 
-const int WINDOW_WIDTH = 1280;
-const int WINDOW_HEIGHT = 720;
+const int WINDOW_WIDTH = 720;
+const int WINDOW_HEIGHT = 480;
 float pi = 3.14f / 3.0f;
 std::mutex mutex;
 
@@ -73,9 +73,9 @@ glm::vec3 calculateBarycentricCoord(const glm::vec2& A, const glm::vec2& B, cons
 }
 
 glm::mat4 createModelSpace() {
-    glm::mat4 translation = glm::translate(glm::mat4(1), glm::vec3(0.0f, 0.0f, -35.0f));
-    glm::mat4 scale = glm::scale(glm::mat4(1), glm::vec3(60.0f, 60.0f, 60.0f));
-    glm::mat4 rotation = glm::mat4(1.0f);
+    glm::mat4 translation = glm::translate(glm::mat4(1), glm::vec3(0.0f, 0.0f, -10.0f));
+    glm::mat4 scale = glm::scale(glm::mat4(1), glm::vec3(40.0f, 40.0f, 10.0f));
+    glm::mat4 rotation = glm::mat4(1);
     return translation * scale * rotation;
 }
 
@@ -347,7 +347,7 @@ int main(int argc, char* argv[]) {
         saturnRotation += 0.09f;
         uranusRotation += 0.1f;
         neptuneRotation += 0.085f;
-        targetPosition = glm::vec3(10.0f * sin(glm::radians(rotationX)) * cos(glm::radians(rotationY)), 10.0f * sin(glm::radians(rotationY)), -10.0f * cos(glm::radians(rotationX)) * cos(glm::radians(rotationY))) + cameraPosition;
+        targetPosition = glm::vec3(5.0f * sin(glm::radians(rotationX)) * cos(glm::radians(rotationY)), 5.0f * sin(glm::radians(rotationY)), -5.0f * cos(glm::radians(rotationX)) * cos(glm::radians(rotationY))) + cameraPosition;
 
         glm::vec3 translateEarth = calculatePositionInCircle(earthRotation, 2.0f);
         glm::vec3 translateMars = calculatePositionInCircle(marsRotation, 2.5f);

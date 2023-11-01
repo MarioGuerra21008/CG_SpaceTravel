@@ -6,20 +6,6 @@
 #include "vertexArray.h"
 #pragma once
 
-void printMatrix(const glm::mat4& myMatrix) {
-
-    for (int i = 0; i < 4; ++i) {
-        for (int j = 0; j < 4; ++j) {
-            std::cout << myMatrix[i][j] << " ";
-        }
-        std::cout << std::endl;
-    }
-}
-
-void printVec4(const glm::vec4& vector) {
-    std::cout << "(" << vector.x << ", " << vector.y << ", " << vector.z << ", " << vector.w << ")";
-}
-
 Vertex vertexShader(const Vertex& vertex, const Uniform& uniform) {
     glm::vec4 transformedVertex = uniform.projection * uniform.view * uniform.model * glm::vec4(vertex.position, 1.0f);
     double z = transformedVertex.z;
@@ -61,15 +47,10 @@ Color fragmentShader(Fragment& fragment) {
     noise.SetFractalWeightedStrength(0.80f); // Fuerza ponderada
     noise.SetFractalPingPongStrength(10); // Fuerza de ping pong
 
-    // Configuración de ruido celular
-    noise.SetCellularDistanceFunction(FastNoiseLite::CellularDistanceFunction_Euclidean); // Función de distancia celular
-    noise.SetCellularReturnType(FastNoiseLite::CellularReturnType_Distance2Add); // Tipo de retorno celular
-    noise.SetCellularJitter(20); // Jitter (variación en las celdas)
-
     // Parámetros para la rotación de las estrellas
-    float ox = 150.0f; // Desplazamiento en X
-    float oy = 150.0f; // Desplazamiento en Y
-    float zoom = 100000.0f; // Factor de zoom (ajusta según tus preferencias)
+    float ox = 15.0f; // Desplazamiento en X
+    float oy = 15.0f; // Desplazamiento en Y
+    float zoom = 3000.0f; // Factor de zoom (ajusta según tus preferencias)
 
     // Obtener el valor de ruido en función de la posición y el zoom
     float noiseValue = abs(noise.GetNoise((fragment.original.x + ox) * zoom, (fragment.original.y + oy) * zoom, fragment.original.z * zoom));
@@ -78,7 +59,7 @@ Color fragmentShader(Fragment& fragment) {
     Color starColor(255, 255, 255, 255);
 
     // Si el valor de ruido es mayor que cierto umbral, muestra una estrella
-    if (noiseValue > 0.70f) {
+    if (noiseValue > 0.60f) {
         return starColor; // Color blanco para las estrellas
     }
     // Si no es una estrella, devuelve un color negro para el espacio vacío
