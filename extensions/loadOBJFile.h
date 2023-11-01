@@ -5,7 +5,6 @@
 #include <array>
 #include <vector>
 #include <SDL.h>
-#include <algorithm>
 #include "glm/glm.hpp"
 #include "glm/gtc/matrix_transform.hpp"
 #pragma once
@@ -50,19 +49,15 @@ bool loadOBJ(const char* path, std::vector<glm::vec3>& out_vertices, std::vector
             {
                 std::string faceData;
                 iss >> faceData;
-
                 std::replace(faceData.begin(), faceData.end(), '/', ' ');
-
                 std::istringstream faceDataIss(faceData);
                 int temp;
                 faceDataIss >> face.vertexIndices[i] >> temp >> face.normalIndices[i];
-
                 face.vertexIndices[i]--;
                 face.normalIndices[i]--;
             }
             out_faces.push_back(face);
         }
     }
-
     return true;
 }

@@ -1,12 +1,13 @@
 #include "glm/glm.hpp"
-#include "uniform.h"
-#include "fragment.h"
 #include "color.h"
-#include "vertexArray.h"
 #include "FastNoiseLite.h"
+#include "fragment.h"
+#include "uniform.h"
+#include "vertexArray.h"
 #pragma once
 
 void printMatrix(const glm::mat4& myMatrix) {
+
     for (int i = 0; i < 4; ++i) {
         for (int j = 0; j < 4; ++j) {
             std::cout << myMatrix[i][j] << " ";
@@ -19,22 +20,23 @@ void printVec4(const glm::vec4& vector) {
     std::cout << "(" << vector.x << ", " << vector.y << ", " << vector.z << ", " << vector.w << ")";
 }
 
-void printVec3(const glm::vec3& vector) {
-    std::cout << "(" << vector.x << ", " << vector.y << ", " << vector.z << ")";
-}
-
 Vertex vertexShader(const Vertex& vertex, const Uniform& uniform) {
-    glm::vec4 transformedVertex = uniform.viewport * uniform.projection * uniform.view * uniform.model * glm::vec4(vertex.position, 1.0f);
+    glm::vec4 transformedVertex = uniform.projection * uniform.view * uniform.model * glm::vec4(vertex.position, 1.0f);
+    double z = transformedVertex.z;
+    transformedVertex = uniform.viewport * transformedVertex;
     glm::vec3 vertexRedux;
     vertexRedux.x = transformedVertex.x / transformedVertex.w;
     vertexRedux.y = transformedVertex.y / transformedVertex.w;
     vertexRedux.z = transformedVertex.z / transformedVertex.w;
+
     Color fragmentColor(255, 0, 0, 255);
     glm::vec3 normal = glm::normalize(glm::mat3(uniform.model) * vertex.normal);
+
     Fragment fragment;
     fragment.position = glm::ivec2(transformedVertex.x, transformedVertex.y);
     fragment.color = fragmentColor;
-    return Vertex {vertexRedux, normal, vertex.tex, vertex.position};
+
+    return Vertex {vertexRedux, normal, vertex.position, z};
 }
 
 float nextTime = 0.5f;
@@ -48,14 +50,14 @@ Color fragmentShader(Fragment& fragment) {
 
     // Configuración del ruido
     noise.SetNoiseType(FastNoiseLite::NoiseType_Perlin);
-    noise.SetSeed(1500); // Semilla para la generación de ruido (puedes cambiarla)
-    noise.SetFrequency(0.005f); // Frecuencia del ruido (ajusta según tus preferencias)
+    noise.SetSeed(18340); // Semilla para la generación de ruido (puedes cambiarla)
+    noise.SetFrequency(0.035f); // Frecuencia del ruido (ajusta según tus preferencias)
 
     // Configuración de ruido fractal para variaciones
     noise.SetFractalType(FastNoiseLite::FractalType_PingPong); // Tipo de ruido fractal
     noise.SetFractalOctaves(2); // Número de octavas
-    noise.SetFractalLacunarity(10 + nextTime); // Lacunarity (variación en la frecuencia)
-    noise.SetFractalGain(1.0f); // Ganancia
+    noise.SetFractalLacunarity(8 + nextTime); // Lacunarity (variación en la frecuencia)
+    noise.SetFractalGain(0.9f); // Ganancia
     noise.SetFractalWeightedStrength(0.80f); // Fuerza ponderada
     noise.SetFractalPingPongStrength(10); // Fuerza de ping pong
 
@@ -65,8 +67,8 @@ Color fragmentShader(Fragment& fragment) {
     noise.SetCellularJitter(20); // Jitter (variación en las celdas)
 
     // Parámetros para la rotación de las estrellas
-    float ox = 15000.0f; // Desplazamiento en X
-    float oy = 15000.0f; // Desplazamiento en Y
+    float ox = 150.0f; // Desplazamiento en X
+    float oy = 150.0f; // Desplazamiento en Y
     float zoom = 100000.0f; // Factor de zoom (ajusta según tus preferencias)
 
     // Obtener el valor de ruido en función de la posición y el zoom
@@ -76,17 +78,12 @@ Color fragmentShader(Fragment& fragment) {
     Color starColor(255, 255, 255, 255);
 
     // Si el valor de ruido es mayor que cierto umbral, muestra una estrella
-    if (noiseValue > 0.80f) {
+    if (noiseValue > 0.70f) {
         return starColor; // Color blanco para las estrellas
     }
-
     // Si no es una estrella, devuelve un color negro para el espacio vacío
     return Color(0, 0, 0, 255); // Color negro para el espacio
-
-    // Incrementar la variable "nextTime" para animar el ruido (rotación)
-    nextTime += 0.5f; // Puedes ajustar la velocidad de rotación
 }
-
 
 Color fragmentShaderSun(Fragment& fragment) {
     // Obtiene las coordenadas del fragmento en el espacio 2D
@@ -138,7 +135,7 @@ Color fragmentShaderSun(Fragment& fragment) {
     float noiseValuef = abs(noise.GetNoise((fragment.original.x + oxf) * zoomf, (fragment.original.y + oyf) * zoomf, fragment.original.z * zoomf));
 
     if (noiseValuef > 0.9f) {
-      /*  tmpColor = flareColor; */
+        /*  tmpColor = flareColor; */
     }
 
     // Multiplicar el color por la coordenada Z para simular la perspectiva

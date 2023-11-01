@@ -2,8 +2,8 @@
 #include "color.h"
 #pragma once
 
-const int SCREEN_WIDTH = 1080;
-const int SCREEN_HEIGHT = 720;
+constexpr size_t SCREEN_WIDTH = 800;
+constexpr size_t SCREEN_HEIGHT = 800;
 
 std::array<std::array<Color, SCREEN_WIDTH>, SCREEN_HEIGHT> framebuffer;
 
@@ -13,6 +13,7 @@ void renderBuffer(SDL_Renderer* renderer) {
     void* texturePixels;
     int pitch;
     SDL_LockTexture(texture, NULL, &texturePixels, &pitch);
+
     Uint32 format = SDL_PIXELFORMAT_ARGB8888;
     SDL_PixelFormat* mappingFormat = SDL_AllocFormat(format);
 

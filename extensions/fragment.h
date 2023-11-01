@@ -3,7 +3,7 @@
 #pragma once
 
 struct Fragment {
-    glm::ivec2 position; // X and Y coordinates of the pixel (in screen space)
+    glm::ivec2 position;
     Color color;
     float z;
     glm::vec3 original;
